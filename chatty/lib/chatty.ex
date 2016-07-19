@@ -1,0 +1,2 @@
+defmodule Chatty do
+end
