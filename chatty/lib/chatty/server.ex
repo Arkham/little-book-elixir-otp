@@ -16,7 +16,8 @@ defmodule Chatty.Server do
   end
 
   def via_tuple(room_name) do
-    {:via, Chatty.Registry, {:chat_room, room_name}}
+    # {:via, Chatty.Registry, {:chat_room, room_name}}
+    {:via, :gproc, {:n, :l, {:chat_room, room_name}}}
   end
 
   ## Callbacks
