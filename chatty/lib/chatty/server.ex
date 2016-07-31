@@ -1,19 +1,22 @@
 defmodule Chatty.Server do
   use GenServer
-  @name :chatty
 
   ## Api
 
   def start_link(name) do
-    GenServer.start_link(__MODULE__, [], name: @name)
+    GenServer.start_link(__MODULE__, [], name: via_tuple(name))
   end
 
-  def add_message(message) do
-    GenServer.cast(@name, {:add_message, message})
+  def add_message(room_name, message) do
+    GenServer.cast(via_tuple(room_name), {:add_message, message})
   end
 
-  def get_messages do
-    GenServer.call(@name, :get_messages)
+  def get_messages(room_name) do
+    GenServer.call(via_tuple(room_name), :get_messages)
+  end
+
+  def via_tuple(room_name) do
+    {:via, Chatty.Registry, {:chat_room, room_name}}
   end
 
   ## Callbacks
