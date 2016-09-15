@@ -3,10 +3,11 @@ defmodule Pooly.Server do
   import Supervisor.Spec
 
   defmodule State do
-    defstruct sup: nil, worker_sup: nil, size: nil, mfa: nil, workers: nil, monitors: nil
+    defstruct sup: nil, size: nil, mfa: nil, monitors: nil, worker_sup: nil,
+      workers: nil
   end
 
-  ## API
+  # API
 
   def start_link(sup, pool_config) do
     GenServer.start_link(__MODULE__, [sup, pool_config], name: __MODULE__)
@@ -24,7 +25,7 @@ defmodule Pooly.Server do
     GenServer.call(__MODULE__, :status)
   end
 
-  ## Callbacks
+  # Callbacks
 
   def init([sup, pool_config]) when is_pid(sup) do
     monitors = :ets.new(:monitors, [:private])
@@ -49,7 +50,7 @@ defmodule Pooly.Server do
   end
 
   def handle_info(:start_worker_supervisor, state = %{sup: sup, mfa: mfa, size: size}) do
-    {:ok, worker_sup} = Supervisor.start_child(sup, supervisor_spec(mfa))
+    {:ok, worker_sup} = Supervisor.start_child(sup, worker_supervisor_spec(mfa))
     workers = prepopulate(size, worker_sup)
     {:noreply, %{state | worker_sup: worker_sup, workers: workers}}
   end
@@ -60,6 +61,7 @@ defmodule Pooly.Server do
         ref = Process.monitor(from_pid)
         true = :ets.insert(monitors, {worker, ref})
         {:reply, worker, %{state | workers: rest}}
+
       [] ->
         {:reply, :noproc, state}
     end
@@ -69,8 +71,8 @@ defmodule Pooly.Server do
     {:reply, {length(workers), :ets.info(monitors, :size)}, state}
   end
 
-  def handle_cast({:checkin, worker}, %{workers: workers, monitors: monitors} = state) do
-    case :ets.lookup(monitors, worker) do
+  def handle_cast({:checkin, worker_pid}, %{workers: workers, monitors: monitors} = state) do
+    case :ets.lookup(monitors, worker_pid) do
       [{pid, ref}] ->
         true = Process.demonitor(ref)
         true = :ets.delete(monitors, pid)
@@ -80,9 +82,9 @@ defmodule Pooly.Server do
     end
   end
 
-  ## Private
+  # private
 
-  defp supervisor_spec(mfa) do
+  defp worker_supervisor_spec(mfa) do
     opts = [restart: :temporary]
     supervisor(Pooly.WorkerSupervisor, [mfa], opts)
   end
@@ -96,7 +98,7 @@ defmodule Pooly.Server do
   end
 
   defp prepopulate(size, sup, workers) do
-    prepopulate(size - 1, sup, [new_worker(sup) | workers])
+    prepopulate(size-1, sup, [new_worker(sup) | workers])
   end
 
   defp new_worker(sup) do
