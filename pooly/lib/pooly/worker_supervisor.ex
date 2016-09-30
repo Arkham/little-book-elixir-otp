@@ -13,7 +13,6 @@ defmodule Pooly.WorkerSupervisor do
     Process.link(pool_server)
 
     worker_opts = [
-      restart: :temporary,
       shutdown: 5000,
       function: f
     ]

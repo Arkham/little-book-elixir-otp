@@ -26,6 +26,10 @@ defmodule Pooly.PoolServer do
     GenServer.call(name(pool_name), :status)
   end
 
+  def terminate(_reason, _state) do
+    :ok
+  end
+
   # Callbacks
 
   def init([pool_sup, pool_config]) when is_pid(pool_sup) do
@@ -73,21 +77,21 @@ defmodule Pooly.PoolServer do
     end
   end
 
-  def handle_info({:EXIT, pid, _reason}, state = %{monitors: monitors, workers: workers, worker_sup: worker_sup}) do
+  def handle_info({:EXIT, worker_sup, reason}, state = %{worker_sup: worker_sup}) do
+    {:stop, reason, state}
+  end
+
+  def handle_info({:EXIT, pid, _reason}, state = %{monitors: monitors, workers: workers, pool_sup: pool_sup}) do
     case :ets.lookup(monitors, pid) do
       [{pid, ref}] ->
         true = Process.demonitor(ref)
         true = :ets.delete(monitors, pid)
-        new_state = %{state | workers: [new_worker(worker_sup)|workers]}
+        new_state = %{state | workers: [new_worker(pool_sup)|workers]}
         {:noreply, new_state}
 
-      [[]] ->
+      _ ->
         {:noreply, state}
     end
-  end
-
-  def handle_info({:EXIT, worker_sup, reason}, state = %{worker_sup: worker_sup}) do
-    {:stop, reason, state}
   end
 
   def handle_call(:checkout, {from_pid, _ref}, %{workers: workers, monitors: monitors} = state) do
@@ -142,6 +146,7 @@ defmodule Pooly.PoolServer do
 
   defp new_worker(sup) do
     {:ok, worker} = Supervisor.start_child(sup, [[]])
+    Process.link(worker)
     worker
   end
 end
