@@ -1,0 +1,2 @@
+defmodule DialyzerPlayground do
+end
