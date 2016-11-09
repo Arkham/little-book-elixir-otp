@@ -67,6 +67,13 @@ defmodule ListsEQC do
     end
   end
 
+  property "tail of list" do
+    forall l <- non_empty(list(int)) do
+      [_head|tail] = l
+      ensure tl(l) == tail
+    end
+  end
+
   # generators
   def map do
     map_gen = lazy do
